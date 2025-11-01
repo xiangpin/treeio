@@ -1,3 +1,7 @@
+# treeio 1.34.0
+
++ Bioconductor RELEASE_3_22 (2025-11-01, Sat)
+
 # treeio 1.32.0
 
 + Bioconductor RELEASE_3_21 (2025-04-17, Thu)

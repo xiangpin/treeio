@@ -48,3 +48,5 @@ test_that("access node name", {
                  as.character(1:Nnode(phy) + Ntip(phy)))
     expect_equal(treeio:::tipIds(phy), 1:Ntip(phy))
 })
+
+
