@@ -5,6 +5,40 @@ library(treeio)
 file <- system.file("extdata/BEAST", "beast_mcc.tree", package="treeio")
 beast <- read.beast(file)
 
+get_beast_annotation_text <- function(treedata) {
+    anno <- tidytree::get_tree_data(treedata)
+    anno$node <- as.integer(anno$node)
+    anno <- anno[!colnames(anno) %in% c("subs", "AA_subs")]
+
+    cn <- colnames(anno)
+    col_type <- vapply(anno, class, character(1))
+    yy <- lapply(which(!cn %in% c("node", "label")), function(i) {
+        v <- cn[i]
+        if (col_type[i] == "list") {
+            rr <- paste0(
+                v, "={",
+                vapply(anno[[v]], function(x) paste(x, collapse = ","), character(1)),
+                "}"
+            )
+        } else {
+            rr <- paste0(v, "=", anno[[v]])
+        }
+        rr[is.na(anno[[v]])] <- NA
+        rr
+    }) %>% do.call("cbind", .)
+
+    anno_text <- vapply(seq_len(nrow(yy)), function(i) {
+        rr <- yy[i,]
+        rr <- rr[!is.na(rr)]
+        if (length(rr) == 0) {
+            return("")
+        }
+        paste0("[&", paste(rr, collapse = ","), "]")
+    }, character(1))
+
+    setNames(anno_text, as.character(anno$node))
+}
+
 test_that("read.beast works", {
     
     expect_s4_class(beast, 'treedata')
@@ -55,6 +89,14 @@ test_that("write_beast_newick output a newick string with annotation", {
     expect_true(grepl('^\\(', beast_nwk))
     expect_true(grepl(';$', beast_nwk))
     expect_gt(file.info(beast_file)$size, 0)
+})
+
+test_that("write_beast_newick preserves root annotation", {
+    root <- treeio:::getRoot(as.phylo(beast)$edge)
+    expected_root_anno <- get_beast_annotation_text(beast)[as.character(root)]
+
+    expect_true(nzchar(expected_root_anno))
+    expect_true(endsWith(beast_nwk, paste0(expected_root_anno, ";")))
 })
 
 

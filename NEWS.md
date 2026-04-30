@@ -1,3 +1,17 @@
+<!--
+
+# TODO LIST
+
++ [ ] improve read.phyloxml
++ [ ] re-write read.beast to optimize parsing large file
+
+
+-->
+
+# treeio 1.37.0.001
+
++ restore `read.beast()` multithreading and complete the `write.beast()` named node annotation fix (2026-04-30, Thu, #130)
+
 # treeio 1.36.0
 
 + Bioconductor RELEASE_3_23 (2026-04-29, Wed)
@@ -13,18 +27,6 @@
 # treeio 1.30.0
 
 + Bioconductor RELEASE_3_20 (2024-10-30, Wed)
-
-
-
-<!--
-
-# TODO LIST
-
-+ [ ] improve read.phyloxml
-+ [ ] re-write read.beast to optimize parsing large file
-
-
--->
 
 # treeio 1.29.2
 

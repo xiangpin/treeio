@@ -308,14 +308,14 @@ write_beast_newick <- write.beast.newick
     if (is.null(root.edge)) {
         cp(")")
         if (nodelab) {
-            if (!is.null(node_anno) && !is.na(node_anno[root])) {
+            if (!is.null(node_anno) && !is.na(node_anno[char.root])) {
                 if(id_as_label) cp(paste0(to_nodelab(edge, root), node_anno[char.root]))
                 else cp(paste0(node.label[1], node_anno[char.root]))
             } else {
                 if (id_as_label) cp(to_nodelab(edge, root))
                 else cp(node.label[1])
             }
-        } else if (!is.null(node_anno) && !is.na(node_anno[root])) {
+        } else if (!is.null(node_anno) && !is.na(node_anno[char.root])) {
             cp(node_anno[char.root])
         }
         cp(";")
