@@ -216,6 +216,7 @@ write_beast_newick <- write.beast.newick
     }
 
     add.internal <- function(i) {
+        char.i <- as.character(i) # make sure we are indexing node_anno by name and not index
         cp("(")
         desc <- kids[[i]]
         for (j in desc) {
@@ -231,13 +232,13 @@ write_beast_newick <- write.beast.newick
             if (is.null(node_anno)) {
                 if (id_as_label) nl <- to_nodelab(edge, i)
                 else nl <- node.label[i - n]
-            } else if (!is.na(node_anno[i])) {
-                if (id_as_label) nl <- paste0(to_nodelab(edge, i), node_anno[i])
-                else nl <- paste0(node.label[i - n], node_anno[i])
+            } else if (!is.na(node_anno[char.i])) {
+                if (id_as_label) nl <- paste0(to_nodelab(edge, i), node_anno[char.i])
+                else nl <- paste0(node.label[i - n], node_anno[char.i])
             }
             cp(nl)
         } else if (i %in% edge[,1] && !is.null(node_anno)) {
-            cp(node_anno[i])
+            cp(node_anno[char.i])
         }
         if (brl) {
             cp(":")
@@ -246,13 +247,15 @@ write_beast_newick <- write.beast.newick
     }
 
     add.terminal <- function(i) {
+        char.i <- as.character(i) # make sure we are indexing node_anno by name and not index
         ii <- edge[i, 2]
-        if (is.null(node_anno) || is.na(node_anno[ii])) {
+        char.ii <- as.character(ii)
+        if (is.null(node_anno) || is.na(node_anno[char.ii])) {
             if (id_as_label) tl <- to_tiplab(edge, ii)
             else tl <- tip.label[ii]
         } else {
-            if (id_as_label) tl <- paste0(to_tiplab(edge, ii), node_anno[ii])
-            else tl <- paste0(tip.label[ii], node_anno[ii])
+            if (id_as_label) tl <- paste0(to_tiplab(edge, ii), node_anno[char.ii])
+            else tl <- paste0(tip.label[ii], node_anno[char.ii])
         }
         cp(tl)
         if (brl) {
@@ -293,6 +296,7 @@ write_beast_newick <- write.beast.newick
     #getRoot <- function(edge)
     #    edge[, 1][!match(edge[, 1], edge[, 2], 0)][1]
     root <- getRoot(edge) # replaced n+1 with root - root has not be n+1
+    char.root <- as.character(root)
     desc <- kids[[root]]
     for (j in desc) {
         if (j %in% edge[,1]) add.internal(j)
@@ -305,14 +309,14 @@ write_beast_newick <- write.beast.newick
         cp(")")
         if (nodelab) {
             if (!is.null(node_anno) && !is.na(node_anno[root])) {
-                if(id_as_label) cp(paste0(to_nodelab(edge, root), node_anno[root]))
-                else cp(paste0(node.label[1], node_anno[root]))
+                if(id_as_label) cp(paste0(to_nodelab(edge, root), node_anno[char.root]))
+                else cp(paste0(node.label[1], node_anno[char.root]))
             } else {
                 if (id_as_label) cp(to_nodelab(edge, root))
                 else cp(node.label[1])
             }
         } else if (!is.null(node_anno) && !is.na(node_anno[root])) {
-            cp(node_anno[root])
+            cp(node_anno[char.root])
         }
         cp(";")
     } else {
