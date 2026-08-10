@@ -24,7 +24,7 @@ read.phyloxml <- function(file){
     }else{
         objtmp <- lapply(index, single_tree, x, file)
         obj <- lapply(objtmp, function(x)x[[1]])
-        names(obj) <- unlist(lapply(objtmp, function(x)x[[2]]))
+        names(obj) <- vapply(objtmp, function(x)x[[2]], character(1))
         class(obj) <- "treedataList"
     }
     return(obj)
@@ -77,16 +77,39 @@ single_tree <- function(i, phylogeny, file){
 
 #' @keywords internal
 parser_clade <- function(x, id=list2env(list(id = 0L)), parent=NULL){
-    # to generate edge data
-    id[["id"]] <- id[["id"]] + 1L
-    id[["data"]][[id[["id"]]]] <- extract_values_attrs(x, id=id[["id"]], isTip=FALSE, parent=fill_id(parent))
-    index <- which(names(x)=="clade")
-    if (length(index)){
-        lapply(x[index], parser_clade, id=id, parent=id[["data"]][[id[["id"]]-1L]][["NodeID"]])
-    }else{
-        id[["data"]][[id[["id"]]]][["isTip"]] <- TRUE
+    # Generate edge data in preorder without repeatedly binding partial results.
+    rows <- list()
+    nrows <- 0L
+    stack <- list()
+    top <- 1L
+    stack[[top]] <- list(node = x, parent = fill_id(parent))
+    while (top > 0L){
+        current <- stack[[top]]
+        top <- top - 1L
+        id[["id"]] <- id[["id"]] + 1L
+        node_id <- id[["id"]]
+        row <- extract_values_attrs(current[["node"]], id=node_id, isTip=FALSE, parent=current[["parent"]])
+        index <- which(names(current[["node"]])=="clade")
+        if (length(index)){
+            for (i in rev(index)){
+                top <- top + 1L
+                if (top > length(stack)){
+                    length(stack) <- length(stack) * 2L
+                }
+                stack[[top]] <- list(node = current[["node"]][[i]], parent = node_id)
+            }
+        }else{
+            row[["isTip"]] <- TRUE
+        }
+        nrows <- nrows + 1L
+        if (nrows > length(rows)){
+            length(rows) <- length(rows) * 2L
+        }
+        rows[[nrows]] <- row
     }
-    dat <- dplyr::bind_rows(as.list(id[["data"]]))
+    rows <- rows[seq_len(nrows)]
+    id[["data"]] <- rows
+    dat <- dplyr::bind_rows(rows)
     return(dat)
 }
 
