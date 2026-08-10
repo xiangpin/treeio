@@ -49,4 +49,4 @@ URL: https://yulab-smu.top/contribution-tree-data/
 BugReports: https://github.com/YuLab-SMU/treeio/issues
 biocViews: Software, Annotation, Clustering, DataImport, DataRepresentation,
     Alignment, MultipleSequenceAlignment, Phylogenetics
-RoxygenNote: 7.3.2
+Config/roxygen2/version: 8.0.0

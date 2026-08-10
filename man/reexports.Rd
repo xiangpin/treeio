@@ -42,16 +42,16 @@ These objects are imported from other packages. Follow the links
 below to see their documentation.
 
 \describe{
-  \item{ape}{\code{\link[ape]{as.phylo}}, \code{\link[ape:root]{is.rooted}}, \code{\link[ape:summary.phylo]{Nnode}}, \code{\link[ape:summary.phylo]{Ntip}}, \code{\link[ape]{read.nexus}}, \code{\link[ape]{read.tree}}, \code{\link[ape]{root}}, \code{\link[ape]{rtree}}, \code{\link[ape]{write.nexus}}, \code{\link[ape]{write.tree}}}
+  \item{ape}{\code{\link[ape:as.phylo]{as.phylo()}}, \code{\link[ape:is.rooted]{is.rooted()}}, \code{\link[ape:Nnode]{Nnode()}}, \code{\link[ape:Ntip]{Ntip()}}, \code{\link[ape:read.nexus]{read.nexus()}}, \code{\link[ape:read.tree]{read.tree()}}, \code{\link[ape:root]{root()}}, \code{\link[ape:rtree]{rtree()}}, \code{\link[ape:write.nexus]{write.nexus()}}, \code{\link[ape:write.tree]{write.tree()}}}
 
-  \item{dplyr}{\code{\link[dplyr:mutate-joins]{full_join}}, \code{\link[dplyr:mutate-joins]{inner_join}}}
+  \item{dplyr}{\code{\link[dplyr:full_join]{full_join()}}, \code{\link[dplyr:inner_join]{inner_join()}}}
 
-  \item{magrittr}{\code{\link[magrittr:compound]{\%<>\%}}, \code{\link[magrittr:pipe]{\%>\%}}}
+  \item{magrittr}{\code{\link[magrittr:\%<>\%]{\%<>\%}}, \code{\link[magrittr:\%>\%]{\%>\%}}}
 
-  \item{rlang}{\code{\link[rlang:dot-data]{.data}}}
+  \item{rlang}{\code{\link[rlang:.data]{.data}}}
 
-  \item{tibble}{\code{\link[tibble]{as_tibble}}, \code{\link[tibble]{tibble}}}
+  \item{tibble}{\code{\link[tibble:as_tibble]{as_tibble()}}, \code{\link[tibble:tibble]{tibble()}}}
 
-  \item{tidytree}{\code{\link[tidytree]{ancestor}}, \code{\link[tidytree:reexports]{as.phylo}}, \code{\link[tidytree]{as.treedata}}, \code{\link[tidytree]{child}}, \code{\link[tidytree:drop.tip-methods]{drop.tip}}, \code{\link[tidytree:get.data-methods]{get.data}}, \code{\link[tidytree:get.fields-methods]{get.fields}}, \code{\link[tidytree]{isTip}}, \code{\link[tidytree]{MRCA}}, \code{\link[tidytree]{nodeid}}, \code{\link[tidytree]{nodelab}}, \code{\link[tidytree]{offspring}}, \code{\link[tidytree]{parent}}, \code{\link[tidytree]{rootnode}}, \code{\link[tidytree]{treedata}}}
+  \item{tidytree}{\code{\link[tidytree:ancestor]{ancestor()}}, \code{\link[tidytree:as.phylo]{as.phylo}}, \code{\link[tidytree:as.treedata]{as.treedata()}}, \code{\link[tidytree:child]{child()}}, \code{\link[tidytree:drop.tip]{drop.tip()}}, \code{\link[tidytree:get.data]{get.data()}}, \code{\link[tidytree:get.fields]{get.fields()}}, \code{\link[tidytree:isTip]{isTip()}}, \code{\link[tidytree:MRCA]{MRCA()}}, \code{\link[tidytree:nodeid]{nodeid()}}, \code{\link[tidytree:nodelab]{nodelab()}}, \code{\link[tidytree:offspring]{offspring()}}, \code{\link[tidytree:parent]{parent()}}, \code{\link[tidytree:rootnode]{rootnode()}}, \code{\link[tidytree:treedata]{treedata()}}}
 }}
 

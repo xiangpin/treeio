@@ -8,49 +8,45 @@
 #' tr <- read.nextstrain.json(file1)
 #' tr
 read.nextstrain.json <- function(x){
+    file1 <- x
     x <- jsonlite::read_json(x)
     if (all(c('meta', 'tree') %in% names(x))){
         dt <- parser_children(x$tree)
     }else{
         dt <- parser_children(x)
     }
-    if ('branch.length' %in% colnames(dt)){
-        rmclnm <- c("parentID", "NodeID", "branch.length")
-        edgedf <- dt[, rmclnm]
-    }else{
-        rmclnm <- c("parentID", "NodeID")
-        edgedf <- dt[, rmclnm]
-    }
-    dd <- as.phylo(edgedf, "branch.length")
-    dt$label <- as.character(dt$NodeID)
-    dt <- dt[, !colnames(dt) %in% rmclnm, drop=FALSE]
-    dd <- dd |> tidytree::as_tibble() |> dplyr::full_join(dt, by='label')
-    if ("name" %in% colnames(dd)){
-        dd$label <- dd$name
-        dd$name <- NULL
-    }
-    tr <- dd |> as.treedata()
+    tr <- build_nextstrain_treedata(dt)
+    tr@file <- file1
     return(tr)
 }
 
 parser_children <- function(x, id=list2env(list(id = 0L)), parent = 1){
-    id[["id"]] <- id[["id"]] + 1L
-    id[["data"]][[id[["id"]]]] <- extract_node_attrs(x, id=id[["id"]], isTip=FALSE, parent=parent)
-    if ('div' %in% colnames(id[['data']][[id[['id']]]])){
-        parent.index <- id[['data']][[id[['id']]]][['parentID']]
-        id[['data']][[id[['id']]]][['branch.length']] <- as.numeric(id[['data']][[id[['id']]]][['div']]) - 
-            as.numeric(id[['data']][[parent.index]][['div']])
+    rows <- list()
+    stack <- list(list(node = x, parent = parent))
+    node_id <- 0L
+    while (length(stack) > 0L) {
+        cur <- stack[[length(stack)]]
+        stack[[length(stack)]] <- NULL
+        node_id <- node_id + 1L
+        row <- extract_node_attrs(cur$node, id = node_id, parent = cur$parent)
+        if ('children' %in% names(cur$node)) {
+            kids <- cur$node$children
+            if (length(kids) > 0L) {
+                for (i in rev(seq_along(kids))) {
+                    stack[[length(stack) + 1L]] <- list(node = kids[[i]], parent = node_id)
+                }
+            }
+        }
+        rows[[node_id]] <- row
     }
-    if ('children' %in% names(x)){
-        lapply(x$children, 
-               parser_children, 
-               id = id,
-               parent = ifelse(id[['id']]>=2, id[["data"]][[id[["id"]]-1L]][["NodeID"]], 1)
-        )
-    }else{
-        id[["data"]][[id[["id"]]]][["isTip"]] <- TRUE
+    dat <- dplyr::bind_rows(rows)
+    numeric_cols <- vapply(dat, check_num, logical(1))
+    if (any(numeric_cols)) {
+        dat[numeric_cols] <- lapply(dat[numeric_cols], as.numeric)
     }
-    dat <- dplyr::bind_rows(as.list(id[["data"]])) %>% dplyr::mutate_if(check_num, as.numeric)
+    if ('div' %in% colnames(dat)){
+        dat[["branch.length"]] <- dat[["div"]] - dat[["div"]][match(dat[["parent"]], dat[["node"]])]
+    }
     return(dat)
 }
 
@@ -58,7 +54,7 @@ check_num <- function(x){
     is_numeric(x) && is.character(x)
 }
 
-extract_node_attrs <- function(x, id, isTip, parent){
+extract_node_attrs <- function(x, id, parent){
     if ('node_attrs' %in% names(x)){
         res <- build_node_attrs(x[['node_attrs']])
     }else if('attr' %in% names(x)){
@@ -71,9 +67,8 @@ extract_node_attrs <- function(x, id, isTip, parent){
     }else if('strain' %in% names(x)){
         res$name <- x[['strain']]
     }
-    res$parentID <- parent
-    res$NodeID <- id
-    res$isTip <- isTip
+    res$parent <- parent
+    res$node <- id
     return(res)
 }
 
@@ -81,7 +76,39 @@ build_node_attrs <- function(x){
     x <- unlist(x)
     index <- grepl('\\.value$', names(x))
     names(x)[index] <- gsub('\\.value$', '', names(x)[index])
-    x <- tibble::as_tibble(t(x))
+    x <- as.data.frame(as.list(x), stringsAsFactors = FALSE, check.names = FALSE)
     return(x)
+}
+
+#' @importFrom tidytree tip.label node.label tip.label<- node.label<-
+build_nextstrain_treedata <- function(x){
+    if ("branch.length" %in% colnames(x)){
+        clnm <- c('parent', 'node', 'branch.length')
+	phylo <- as.phylo(x[, clnm, drop = FALSE], 
+                          branch.length =  'branch.length')
+    }else{
+        clnm <- c('parent', 'node')
+        phylo <- as.phylo(x[, clnm, drop = FALSE])
+    }
+    tmptbl <- as_tibble(phylo)
+    tmptbl$label <- as.integer(tmptbl$label) 
+    x <- dplyr::left_join(tmptbl[, !colnames(tmptbl) %in% clnm[clnm != 'node']], x, by = c('label' = 'node')) |>
+         dplyr::arrange(!!rlang::sym("node"))
+    if ("name" %in% colnames(x)){
+        tip.label(phylo) <- x$name[seq(Ntip(phylo))]
+        tmpnm <- x$name[seq(Ntip(phylo) + 1, Nnode(phylo, internal.only = FALSE))]
+        if (all(is.na(tmpnm)) || all(tmpnm == "")){
+            node.label(phylo) <- NULL
+        }else{
+            node.label(phylo) <- tmpnm
+        }
+        clnm <- c(clnm, c("name", "label"))
+    }    
+    trda <- new("treedata", phylo = phylo)
+    x <- x[, !colnames(x) %in% clnm[clnm != 'node'], drop=FALSE]
+    if (ncol(x)>1){
+        trda@data <- x
+    } 
+    return(trda)
 }
 

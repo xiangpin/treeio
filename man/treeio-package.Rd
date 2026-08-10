@@ -21,6 +21,11 @@ Useful links:
 \author{
 \strong{Maintainer}: Guangchuang Yu \email{guangchuangyu@gmail.com} (\href{https://orcid.org/0000-0002-6485-8781}{ORCID})
 
+Authors:
+\itemize{
+  \item Guangchuang Yu \email{guangchuangyu@gmail.com} (\href{https://orcid.org/0000-0002-6485-8781}{ORCID})
+}
+
 Other contributors:
 \itemize{
   \item Tommy Tsan-Yuk Lam \email{tylam.tommy@gmail.com} [contributor, thesis advisor]
