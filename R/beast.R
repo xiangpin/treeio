@@ -18,7 +18,13 @@ read.beast <- function(file, threads = 1, verbose = FALSE) {
 
     treetext <- read.treetext_beast(text)
     stats <- read.stats_beast(text, treetext, threads = threads, verbose = verbose)
-    phylo <- read.nexus(file)
+    if (verbose) {
+        cat("reading phylo...\n")
+    }
+    phylo <- read.phylo_beast(file, text, treetext)
+    if (verbose) {
+        cat("done reading phylo\n")
+    }
 
     if (length(treetext) == 1) {
         obj <- BEAST(file, treetext, stats, phylo)
@@ -124,7 +130,11 @@ read.treetext_beast <- function(beast) {
 
     trees <- lapply(seq_along(ii), function(i) {
         tree <- beast[(ii[i]+1):(jj[i]-1)]
-        tree <- tree[grep("^\\s*tree", tree, ignore.case = TRUE, perl = use_perl())]
+        ## the tree line is 'TREE <name> = ...' and 'UTREE <name> = ...' for
+        ## an unrooted tree, e.g. the output of MCMCTree and of the LSD2
+        ## dating of IQ-TREE, #111
+        tree <- tree[grep("^\\s*[a-zA-Z]*tree", tree, ignore.case = TRUE,
+                          perl = use_perl())]
         sub("[^(]*", "", tree)
     }) %>% unlist
 
@@ -148,6 +158,55 @@ read.trans_beast <- function(beast) {
         do.call(rbind, .)
     ## trans is a matrix
     return(trans)
+}
+
+
+## ape::read.nexus() numbers the tips by the keys of the TRANSLATE table,
+## this returns a broken tree when the keys are not 1:Ntip, which is what
+## MEGA writes, #132
+read.phylo_beast <- function(file, beast, treetext) {
+    ## read.nexus() only knows the 'TREE' keyword and fails on the 'UTREE' of
+    ## an unrooted tree, e.g. the LSD2 output of IQ-TREE, #111
+    phylo <- try(read.nexus(file), silent = TRUE)
+    if (inherits(phylo, "try-error")) {
+        phylo <- NULL
+    }
+    if (!is.null(phylo) && is_valid_phylo(phylo)) {
+        return(phylo)
+    }
+
+    ## the tips are numbered when the file has a translate table, take the
+    ## labels from it; the tree text is used as it is otherwise
+    res <- read.tree(text = treetext)
+
+    trans <- read.trans_beast(beast)
+    if (ncol(trans) < 2) {
+        return(res)
+    }
+
+    translate_tip <- function(tr) {
+        tr$tip.label <- trans[, 2][match(tr$tip.label, trans[, 1])]
+        return(tr)
+    }
+
+    res <- read.tree(text = treetext)
+    if (inherits(res, "multiPhylo")) {
+        nms <- names(res)
+        res <- lapply(res, translate_tip)
+        names(res) <- nms
+        class(res) <- "multiPhylo"
+    } else {
+        res <- translate_tip(res)
+    }
+    return(res)
+}
+
+is_valid_phylo <- function(phylo) {
+    if (inherits(phylo, "multiPhylo")) {
+        return(all(vapply(phylo, is_valid_phylo, logical(1))))
+    }
+    n <- Ntip(phylo) + phylo$Nnode
+    return(setequal(as.vector(phylo$edge), seq_len(n)))
 }
 
 
@@ -195,7 +254,10 @@ read.stats_beast_internal <- function(text, is_translated, index = NULL, verbose
     ii <- match(nn, tree_label)
 
     if (is_translated == TRUE) {
-        label2 <- c(phylo$tip.label, root:getNodeNum(phylo))
+        ## the tips are numbered by their position, the keys of the translate
+        ## table are not necessarily 1:Ntip (e.g. MEGA output), #132
+        label2 <- as.character(seq_len(Ntip(phylo)))
+        label2 <- c(label2, as.character(root:getNodeNum(phylo)))
     } else {
         label2 <- as.character(1:getNodeNum(phylo))
     }
@@ -204,6 +266,11 @@ read.stats_beast_internal <- function(text, is_translated, index = NULL, verbose
     ## BEAST1 edge stat fix
    	text <- gsub("\\]:\\[&(.+?\\])", ",\\1:", text, perl = use_perl())
     text <- gsub(":(\\[.+?\\])", "\\1:", text, perl = use_perl())
+
+    ## BEAST2 puts the partition name into the parameter name,
+    ## e.g. blockcount.t:hi=0, and the extra ':' breaks the parsing below
+    ## as the stats are split by ':'
+    text <- gsub(":([^,\\[\\]=\\(\\)\\s]+)=", "=", text, perl = use_perl())
 
     if (grepl("\\:[0-9\\.eEL+\\-]*\\[", text, perl = use_perl()) || grepl("\\]\\[", text, perl = use_perl())){
         pattern <- "(\\w+)?(:[\\+\\-]?\\d*\\.?\\d*[Ee]?[\\+\\-]?\\L*\\d*)?(\\[&.*?\\])"
@@ -251,8 +318,15 @@ read.stats_beast_internal <- function(text, is_translated, index = NULL, verbose
             y <- y[-kk]
         }
 
-        if (length(y) == 0)
+        if (length(y) == 0) {
+            ## an annotation that only holds a set, e.g. the 95% CI of an
+            ## MCMCTree output; the values are kept as numbers so that they
+            ## are not different from an annotation that holds more, #13
+            SETS <- lapply(SETS, function(x) {
+                if (is_numeric(x)) as.numeric(x) else x
+            })
             return(SETS)
+        }
 
         name <- gsub("=.*", "", y, perl = use_perl())
         val <- gsub(".*=", "", y, perl = use_perl()) %>%

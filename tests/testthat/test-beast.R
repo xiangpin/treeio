@@ -123,3 +123,128 @@ test_that("read.beast.newick should work for multiple trees",{
     expect_true(inherits(trees, "treedataList"))
     expect_equal(trees[[1]]@phylo, tree1)
 })
+
+
+## BEAST2 appends the partition name to the parameter name (e.g. blockcount.t:hi),
+## the extra ':' used to break the parsing of the annotation, #136
+beast2 <- read.beast(system.file("extdata/BEAST", "beast2_mcc.tree", package="treeio"))
+
+test_that("read.beast strips the BEAST2 partition name from the parameter name", {
+    expect_s4_class(beast2, "treedata")
+    expect_equal(ape::Ntip(beast2@phylo), 4)
+    expect_equal(beast2@phylo$tip.label, c("a", "b", "c", "d"))
+
+    cn <- colnames(beast2@data)
+    expect_true(all(c("blockcount.t", "blockstart.t", "blockend.t") %in% cn))
+
+    ## the values are numbers, not the parameter name itself
+    expect_true(is.numeric(beast2@data$blockcount.t))
+    d <- as.data.frame(beast2@data)[match(as.character(1:4), beast2@data$node), ]
+    expect_equal(d$blockcount.t, c(0, -1, 2, 1))
+    expect_equal(d$blockstart.t, c(0.2, 0.5, 0.1, 0.5))
+    expect_equal(d$blockend.t, c(0.2, 0.5, 0.5, 0.75))
+})
+
+## ':' inside an annotation value must not be treated as a partition name,
+## otherwise the following parameter is swallowed
+beast2_colon <- read.beast.newick(textConnection(
+    '((a[&mutation="A:T",rate=1.5]:0.1,b[&rate=2]:0.2)[&rate=1]:0.3,c[&rate=0.5]:0.4);'
+))
+
+test_that("read.beast does not strip ':' that is inside an annotation value", {
+    d <- as.data.frame(beast2_colon@data)
+    expect_true("mutation" %in% colnames(d))
+    ## the value is truncated at ':' (existing limitation of splitting by ':'),
+    ## but it must not pick up the value of the next parameter
+    expect_equal(d$mutation[1], "A")
+})
+
+
+## the keys of the TRANSLATE table are not necessarily 1:Ntip (e.g. MEGA
+## output); ape::read.nexus() numbers the tips by the keys and returns a
+## broken tree, and the node data was shifted accordingly, #132
+nonconsecutive <- read.beast(
+    system.file("extdata/MEGA7", "nonconsecutive_translate.nex", package="treeio")
+)
+
+test_that("read.beast works with a non-consecutive translate table", {
+    expect_s4_class(nonconsecutive, "treedata")
+    expect_equal(ape::Ntip(nonconsecutive@phylo), 4)
+    expect_equal(nonconsecutive@phylo$tip.label, c("A", "B", "C", "D"))
+
+    ## the tips are numbered 1:Ntip, not by the keys of the translate table
+    n <- Ntip(nonconsecutive@phylo) + Nnode(nonconsecutive@phylo)
+    expect_setequal(as.vector(nonconsecutive@phylo$edge), seq_len(n))
+
+    d <- as.data.frame(nonconsecutive@data)
+    d <- d[match(as.character(1:4), d$node), ]
+    expect_equal(d$rate, c(0.1, 0.3, 0.6, 0.8))
+})
+
+test_that("read.mega works with a non-consecutive translate table", {
+    mega <- read.mega(
+        system.file("extdata/MEGA7", "nonconsecutive_translate.nex", package="treeio")
+    )
+    expect_equal(mega@phylo, nonconsecutive@phylo)
+    expect_equal(mega@data, nonconsecutive@data)
+})
+
+
+## a nexus file written by e.g. FigTree quotes the taxon names, the quotes
+## used to be kept and the tip labels did not match the sequence names, #47
+quoted <- read.beast(
+    system.file("extdata/BEAST", "beast_mcc_quoted.tree", package="treeio")
+)
+
+test_that("read.beast removes the quotes around the taxon names", {
+    expect_equal(quoted@phylo$tip.label, beast@phylo$tip.label)
+    expect_false(any(grepl("['\"]", quoted@phylo$tip.label)))
+})
+
+
+## a taxon name may contain a space, e.g. 'MF574563.1 _COL_2015'; it is single
+## quoted and ape::read.nexus() used to split it, which returned a tree with
+## the wrong number of tips and crashed the session when plotted, #71
+spaced <- read.beast(
+    system.file("extdata/BEAST", "beast_mcc_spaced.tree", package="treeio")
+)
+
+test_that("read.beast keeps the space inside a quoted taxon name", {
+    expect_equal(ape::Ntip(spaced@phylo), 4)
+    expect_equal(spaced@phylo$tip.label,
+                 c("A_1995", "B_1996", "MF574563.1 _COL_2015", "D_1987"))
+
+    d <- as.data.frame(spaced@data)
+    d <- d[match(as.character(1:4), d$node), ]
+    expect_equal(d$length, c(1, 1, 2, 2))
+})
+
+
+## the dating of IQ-TREE (LSD2) writes an unrooted tree with 'UTREE', which
+## ape::read.nexus() does not know, and only some of the nodes are annotated,
+## #111
+lsd2 <- read.beast(system.file("extdata/LSD2", "timetree.nex", package="treeio"))
+
+test_that("read.beast supports the UTREE keyword of an LSD2 timetree", {
+    expect_s4_class(lsd2, "treedata")
+    expect_equal(lsd2@phylo$tip.label, LETTERS[1:4])
+
+    d <- as.data.frame(lsd2@data)
+    d <- d[match(as.character(1:4), d$node), ]
+    expect_equal(d$date, c(0, 0, NA, NA))
+    expect_equal(d$height, c(0, 0, NA, NA))
+})
+
+test_that("write.beast does not annotate the nodes without data", {
+    ## a node without data used to be annotated with 'NULL' and the node label
+    ## was left undefined, which stopped the export, #111
+    file <- tempfile()
+    write.beast(lsd2, file = file)
+
+    txt <- readLines(file)
+    expect_false(any(grepl("NULL", txt, fixed = TRUE)))
+
+    tr <- read.beast(file)
+    expect_equal(tr@phylo$tip.label, lsd2@phylo$tip.label)
+    expect_equal(as.data.frame(tr@data)$date, as.data.frame(lsd2@data)$date)
+})

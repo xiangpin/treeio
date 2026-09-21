@@ -3,33 +3,64 @@
 ##'
 ##' @title read.raxml
 ##' @param file RAxML bootstrapping analysis output
+##' @param text alternatively, the content of the file as a character string
+##' or a connection; 'file' is ignored when 'text' is given
 ##' @return treedata object
 ##' @export
 ##' @examples
 ##' raxml_file <- system.file("extdata/RAxML", "RAxML_bipartitionsBranchLabels.H3", package="treeio")
 ##' read.raxml(raxml_file)
+##' read.raxml(text = "(a:0.1,b:0.2)90:0.3;")
 ##' @author Guangchuang Yu
-read.raxml <- function(file) {
+read.raxml <- function(file = NULL, text = NULL) {
+    if (!is.null(text)) {
+        if (!inherits(text, "connection")) {
+            text <- textConnection(text)
+        }
+        file <- text
+    }
+    if (is.null(file)) {
+        stop("either 'file' or 'text' should be specified.")
+    }
     tree.text <- readLines(file, warn=FALSE)
     tree_text <- gsub('(:[0-9\\.eE+\\-]+)\\[(\\d+)\\]', '\\@\\2\\1', tree.text)
     phylo <- read.tree(text=tree_text)
-    if(any(grepl('@', phylo$node.label))) {
-        bootstrap <- suppressWarnings(
-            as.numeric(gsub("[^@]*@(\\d+)", "\\1", phylo$node.label)) 
-                   )
-        phylo$node.label <- gsub("@\\d+", "", phylo$node.label)
+
+    ## a file of bootstrap replicates contains several trees, #121
+    if (inherits(phylo, "multiPhylo")) {
+        res <- lapply(phylo, .raxml_treedata, file = file, treetext = tree.text)
+        names(res) <- names(phylo)
+        class(res) <- "treedataList"
+        return(res)
     }
 
-    if (all(phylo$node.label == "")) {
-        phylo$node.label <- NULL
+    return(.raxml_treedata(phylo, file, tree.text))
+}
+
+.raxml_treedata <- function(phylo, file, treetext) {
+    ## the bootstrap replicates of e.g. RAxML_bootstrap.output have no
+    ## support value at all, #121
+    bootstrap <- rep(NA_real_, phylo$Nnode)
+
+    if (!is.null(phylo$node.label)) {
+        if (any(grepl('@', phylo$node.label))) {
+            bootstrap <- suppressWarnings(
+                as.numeric(gsub("[^@]*@(\\d+)", "\\1", phylo$node.label))
+            )
+            phylo$node.label <- gsub("@\\d+", "", phylo$node.label)
+        }
+
+        if (all(phylo$node.label == "")) {
+            phylo$node.label <- NULL
+        }
     }
 
-    bootstrap <- tibble(node = Ntip(phylo) + 1:phylo$Nnode,
+    bootstrap <- tibble(node = Ntip(phylo) + seq_len(phylo$Nnode),
                         bootstrap = bootstrap)
 
     new("treedata",
         file = filename(file),
-        treetext = tree.text,
+        treetext = treetext,
         phylo = phylo,
         data = bootstrap
         )

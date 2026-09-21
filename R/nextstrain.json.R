@@ -39,11 +39,12 @@ parser_children <- function(x, id=list2env(list(id = 0L)), parent = 1){
         }
         rows[[node_id]] <- row
     }
-    dat <- dplyr::bind_rows(rows)
-    numeric_cols <- vapply(dat, check_num, logical(1))
-    if (any(numeric_cols)) {
-        dat[numeric_cols] <- lapply(dat[numeric_cols], as.numeric)
-    }
+    ## the attributes of a node are unlisted, a node with a character
+    ## attribute turns all of its numeric attributes into characters and
+    ## bind_rows() refuses to combine the two, #126
+    dat <- lapply(as.list(rows), function(d){
+        dplyr::mutate_if(d, check_num, as.numeric)
+    }) %>% dplyr::bind_rows()
     if ('div' %in% colnames(dat)){
         dat[["branch.length"]] <- dat[["div"]] - dat[["div"]][match(dat[["parent"]], dat[["node"]])]
     }

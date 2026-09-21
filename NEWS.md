@@ -10,6 +10,23 @@
 
 # treeio 1.37.0.001
 
++ `edgeNum2nodeNum()` is exported, it maps the `edge_num` of an EPA/pplacer placement (a post-order traversal number) to the node number of the reference tree, #31 (2026-09-20, Sun, #31)
++ `read.beast()` now supports the `UTREE` keyword of an unrooted tree and `write.beast()` no longer annotates a node without data (it wrote `NULL` and could stop with `object 'nl' not found`), which is what happened to the LSD2 timetree of IQ-TREE (2026-09-20, Sun, #111)
++ `read.mcmctree()` now stores the 95% credibility interval of the node age in a `reltime_0.95_CI` column (it used to be a column named `0.95`) so that it can be plotted with `geom_range(range='reltime_0.95_CI', center='reltime')`, and the interval is kept as numbers (2026-09-20, Sun, #13)
++ the substitution is now reported with the node it cannot find a sequence for instead of failing with `seqA should have equal length to seqB`, and that message names the two sequences and their lengths (2026-09-20, Sun, #91)
++ `read.iqtree()` now says when the node labels hold a single support value that cannot be split into SH-aLRT and UFBoot (e.g. the standard bootstrap alone), and it no longer fails on a tree without any branch support (2026-09-20, Sun, #114)
++ `read.iqtree()` now reports that it cannot find a Newick tree in the input instead of parsing the IQ-TREE report file (`*.iqtree`) into a meaningless tree or crashing the R session (2026-09-20, Sun, #98)
++ `as.phylo()` now uses the `branch.length` column by default so that the branch lengths are not lost when a tree is re-rooted (2026-09-20, Sun, #134)
++ `as.phylo()` now uses the `label` column by default instead of the node numbers, so that the tip and node labels are not lost when a tree is re-rooted (2026-09-20, Sun, #120)
++ `read.beast()` and `read.mega()` now support a TRANSLATE table with non-consecutive keys (e.g. MEGA output); the tips are numbered 1:Ntip and the node data is mapped accordingly (2026-09-20, Sun, #132)
++ `read.nextstrain.json()` now parses trees with mixed attribute types (e.g. a divergence tree, where `div` is an integer), the numeric attributes were turned into characters when a node had a character attribute and `bind_rows()` refused to combine them (2026-09-20, Sun, #126)
++ `read.raxml()` supports a `text=` argument to parse a tree string or a connection (2026-09-20, Sun, #122)
++ `read.raxml()` now returns a `treedataList` for a file with several trees (e.g. `RAxML_bootstrap.output`) instead of failing (2026-09-20, Sun, #121)
++ the tree of a PAML output is now found when it is annotated (e.g. `#1` for the branch models) and a file without a tree reports it instead of failing in `strsplit()`, #34 (2026-09-20, Sun, #34)
++ `read.phyloxml()` now keeps the branch lengths, `as.phylo()` was called with `length=` instead of `branch.length=` and the branch lengths were dropped (2026-09-20, Sun, #124)
++ `read.paml_rst()` now attributes the branch length to the node the branch leads to, they were taken by position and ended up on the wrong branch (2026-09-20, Sun, #72)
++ `as.treedata()` now takes the labels of a `data.frame` from its `label` column instead of from the node numbers, which produced `label.x`/`label.y` columns (2026-09-20, Sun, #87)
++ strip the BEAST2 partition name from the annotation parameter name in `read.beast()`, `read.beast.newick()`, `read.mrbayes()` and `read.mega()` (2026-09-20, Sun, #136)
 + restore `read.beast()` multithreading and complete the `write.beast()` named node annotation fix (2026-04-30, Thu, #130)
 
 # treeio 1.36.0

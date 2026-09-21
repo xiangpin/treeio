@@ -81,6 +81,11 @@ read.treetext_paml <- function(file, by) {
         stop("_by_ should be one of 'rst' or 'mlc'")
     }
 
+    if (length(tr.idx) < ii) {
+        stop("cannot find the tree in the file, ",
+             "please make sure that it is a PAML output.")
+    }
+
     return(x[tr.idx][ii])
 }
 
@@ -91,6 +96,10 @@ read.phylo_paml_mlc <- function(mlcfile) {
     edge <- get_tree_edge_paml(mlc)
 
     tr.idx <- get_tree_index_paml(mlc)
+    if (length(tr.idx) < 3) {
+        stop("cannot find the tree in the file, ",
+             "please make sure that it is a PAML output.")
+    }
     tr2 <- read.tree(text=mlc[tr.idx[2]])
     tr3 <- read.tree(text=mlc[tr.idx[3]])
 
@@ -168,15 +177,17 @@ read.phylo_paml_rst <- function(rstfile) {
 
     label <- c(tr3$tip.label, tr3$node.label)
     root <- rootnode(tr3)
-    ## label %<>% `[`(. != root)
-    label <- label[label != root]
 
-    node.length <- data.frame(label=label,
-                              length=tr1$edge.length)
+    ## tr1 and tr3 have the same topology, the length of an edge is taken
+    ## from tr1 for the node the edge leads to; using the position instead
+    ## attributed the lengths to the wrong branches, #72
+    len <- rep(NA_real_, length(label))
+    len[tr3$edge[, 2]] <- tr1$edge.length
 
-    ## node.length$node <- sub("_\\w+", "", node.length$label
-    node.length$node <- gsub("^(\\d+)_.*", "\\1", node.length$label)
-    node.length$label <- sub("\\d+_", "", node.length$label)
+    node.length <- data.frame(label = label,
+                              length = len)
+    node.length$node <- as.numeric(sub("_.*$", "", node.length$label))
+    node.length$label <- sub("^\\d+_", "", node.length$label)
 
     edge <- as.data.frame(edge)
     colnames(edge) <- c("parent", "node")
@@ -242,7 +253,13 @@ read.ancseq_paml_rst <- function(rstfile, by="Marginal") {
 
 
 get_tree_index_paml <- function(paml) {
-    grep("\\)[ \\.0-9]*;", paml)
+    idx <- grep("\\)[ \\.0-9]*;", paml)
+    if (length(idx) < 3) {
+        ## the tree may be annotated, e.g. with '#1' for the branch models,
+        ## and then it does not end with ')...;', #34
+        idx <- grep("\\(.*;", paml)
+    }
+    return(idx)
 }
 
 get_tree_edge_index_paml <- function(paml) {

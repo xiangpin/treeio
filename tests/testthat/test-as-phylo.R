@@ -21,6 +21,28 @@ test_that("as.phylo for tree igraph",{
   expect_equal(tr$Nnode, tr2$Nnode)
 })
 
+test_that("as.phylo uses the 'label' and 'branch.length' columns by default", {
+    ## the node numbers were used as labels and the branch lengths were
+    ## dropped when the tbl_tree class was lost (e.g. after rbind), #120 #134
+    set.seed(2026)
+    tr <- rtree(5)
+    tr$node.label <- paste0("node", seq_len(Nnode(tr)))
+    d <- as.data.frame(as_tibble(tr))
+
+    x <- as.phylo(d)
+    expect_equal(x$tip.label, tr$tip.label)
+    expect_equal(x$node.label, tr$node.label)
+    i <- match(paste(x$edge[, 1], x$edge[, 2]), paste(tr$edge[, 1], tr$edge[, 2]))
+    expect_equal(x$edge.length, tr$edge.length[i])
+})
+
+test_that("as.phylo still falls back to the 2nd column for a plain edge list", {
+    d <- data.frame(parent = c(6, 6, 7, 7, 7),
+                    node = c(1, 2, 3, 4, 6))
+    x <- as.phylo(d)
+    expect_equal(x$tip.label, as.character(1:4))
+})
+
 test_that("as.phylo for tree igraph with weights",{
   set.seed(123)
   g <- igraph::sample_gnp(18, .3) %>%
@@ -31,3 +53,28 @@ test_that("as.phylo for tree igraph with weights",{
 
   }
 )
+
+test_that("as.phylo does not run out of stack on a deep tree", {
+    ## a caterpillar tree is as deep as it gets; the conversion used to
+    ## recurse over the nodes and overflowed the C stack, #78
+    n <- 5000
+    edge <- matrix(0L, nrow = 2 * n - 2, ncol = 2)
+    k <- 1
+    for (i in seq_len(n - 2)) {
+        edge[k, ] <- c(n + i, i); k <- k + 1
+        edge[k, ] <- c(n + i, n + i + 1); k <- k + 1
+    }
+    edge[k, ] <- c(2 * n - 1, n - 1)
+    edge[k + 1, ] <- c(2 * n - 1, n)
+
+    d <- data.frame(parent = edge[, 1], child = edge[, 2],
+                    branch.length = 0.1)
+    label <- c(paste0("t", seq_len(n)), paste0("n", (n + 1):(2 * n - 1)))
+    d$label <- label[d$child]
+
+    x <- as.phylo(d)
+
+    expect_equal(Ntip(x), n)
+    expect_equal(Nnode(x), n - 1)
+    expect_setequal(x$tip.label, paste0("t", seq_len(n)))
+})
