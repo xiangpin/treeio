@@ -46,7 +46,7 @@ read.mcmctree <- function(file, force.ultrametric = FALSE){
 #' @importFrom ape branching.times
 #' @importFrom ape is.ultrametric
 add.branch.time.mcmctree <- function(obj, force.ultrametric=FALSE, ...){
-    obj <- rename.mcmctree.ci(obj)
+    obj <- rename_mcmctree_ci(obj)
     flag_ultrametric <- is.ultrametric(obj@phylo, option=2) || is.ultrametric(obj@phylo)
     if (force.ultrametric && flag_ultrametric){
         message("This tree is not ultrametric, and you has set force.ultrametric to TRUE, so the tree will be converted to ultrametric automatically!")
@@ -67,7 +67,7 @@ add.branch.time.mcmctree <- function(obj, force.ultrametric=FALSE, ...){
 ## which says neither what it is nor what it belongs to. Naming it after the
 ## node time ('reltime', added above) makes it usable, e.g. with
 ## geom_range(range='reltime_0.95_CI', center='reltime'), #13
-rename.mcmctree.ci <- function(obj) {
+rename_mcmctree_ci <- function(obj) {
     i <- which(colnames(obj@data) == "0.95")
     if (length(i) == 1) {
         colnames(obj@data)[i] <- "reltime_0.95_CI"

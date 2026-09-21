@@ -48,7 +48,7 @@ single_tree <- function(i, phylogeny, file){
     if ('branch_length' %in% names(edgedf)){
         ## the argument of as.phylo() is 'branch.length', 'length' ends up
         ## in '...' and the branch lengths were dropped, #124
-        dd <- as.phylo(edgedf, branch.length = branch_length)
+        dd <- as.phylo(edgedf, branch.length = "branch_length")
     }else{
         dd <- as.phylo(edgedf)
     }
